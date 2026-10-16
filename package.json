@@ -1,0 +1,1 @@
+{ "name": "car-comparison-tool", "version": "1.0.0", "description": "Compare cars side by side: specs, MPG, EV range, fuel cost, size and safety", "main": "server.js", "scripts": { "start": "node server.js" }, "engines": { "node": ">=18" }, "keywords": ["car-comparison","compare-cars","car-specs","mpg","ev"], "license": "MIT" }

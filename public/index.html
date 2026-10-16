@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compare Cars Side by Side – Specs, MPG, Size & Safety</title>
+<meta name="description" content="Compare up to 4 cars side by side: engine, transmission, drivetrain, MPG and EV range, fuel cost, CO2, interior and cargo space, dimensions and NHTSA safety ratings. The best value in each row is highlighted.">
+<style>
+  :root { --bg:#f6f7fb; --card:#fff; --line:#e4e7ee; --text:#111827; --muted:#6b7280; --accent:#7c3aed; --best:#dcfce7; --bestt:#166534; --amber:#f59e0b; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); }
+  header { padding:22px 26px; background:#111827; color:#fff; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  header h1 { margin:0; font-size:21px; }
+  .demo { display:none; background:var(--amber); color:#111; font-weight:700; font-size:12px; padding:3px 8px; border-radius:6px; }
+  main { max-width:1280px; margin:18px auto 40px; padding:0 18px; }
+  .slots { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  @media (max-width:1000px) { .slots { grid-template-columns:repeat(2,1fr); } }
+  @media (max-width:560px) { .slots { grid-template-columns:1fr; } }
+  .slot { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px; }
+  .slot .pk { display:grid; gap:6px; }
+  .slot select { width:100%; padding:7px 8px; border:1px solid var(--line); border-radius:8px; background:#fff; font-size:13px; }
+  .slot img { width:100%; aspect-ratio:16/9; object-fit:cover; border-radius:10px; background:#eef2f7; margin-top:8px; }
+  .slot .name { font-weight:800; margin-top:6px; min-height:20px; }
+  .slot .attr { font-size:10.5px; color:var(--muted); }
+  .bar { display:flex; gap:10px; align-items:center; margin:16px 0; flex-wrap:wrap; }
+  .btn { padding:11px 20px; border:0; border-radius:10px; background:var(--accent); color:#fff; font-weight:800; cursor:pointer; font-size:15px; }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .table-wrap { overflow-x:auto; }
+  table { width:100%; border-collapse:separate; border-spacing:0; background:#fff; border:1px solid var(--line); border-radius:14px; overflow:hidden; min-width:640px; }
+  th, td { padding:10px 12px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+  th { background:#f9fafb; font-size:12px; color:var(--muted); width:200px; font-weight:600; }
+  tr.sec td { background:#f3f0ff; color:#5b21b6; font-weight:800; font-size:12px; text-transform:uppercase; letter-spacing:.05em; }
+  td.best { background:var(--best); color:var(--bestt); font-weight:800; }
+  td.best::after { content:' ✓'; }
+  thead td { font-weight:800; }
+  .small { font-size:12px; color:var(--muted); }
+  footer { text-align:center; color:var(--muted); font-size:12px; padding:0 20px 30px; }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>🚗 Compare Cars Side by Side</h1>
+  <span style="opacity:.7;font-size:12px">Specs · MPG & EV range · fuel cost · size · safety</span>
+  <span class="demo" id="demo">DEMO MODE – fictional sample data</span>
+</header>
+<main>
+  <div class="slots" id="slots"></div>
+  <div class="bar"><button class="btn" id="go" disabled>Compare</button><span class="small" id="hint">Pick at least 2 cars (year → make → model → engine/transmission).</span></div>
+  <div class="table-wrap" id="out"></div>
+</main>
+<footer>Data: <a href="https://rapidapi.com/belchiorarkad-FqvHs2EDOtP/api/car-specs-api" target="_blank" rel="noopener">Car Specs API</a> (US EPA, NHTSA, Wikimedia Commons) · Support: <a href="https://t.me/pintoflow" target="_blank" rel="noopener">Telegram @pintoflow</a></footer>
+<script src="/picker.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const chosen = [null, null, null, null];
+const photos = {};
+
+$('slots').innerHTML = chosen.map((_, i) => `<div class="slot"><div class="small">Car ${i + 1}</div><div class="pk" id="pk${i}"></div><div class="name" id="nm${i}"></div><div id="ph${i}"></div></div>`).join('');
+
+async function loadPhoto(i, t) {
+  $('ph' + i).innerHTML = '';
+  if (!t) return;
+  try {
+    const { data } = await api('/images', { make: t.make, model: t.model, year: t.year, limit: 1, width: 640 });
+    const img = (Array.isArray(data) ? data : data.images || [])[0];
+    if (img) { photos[t.id] = img; $('ph' + i).innerHTML = `<img src="${esc(img.thumbnailUrl || img.url)}" alt=""><div class="attr">${esc(img.attribution || '')}</div>`; }
+  } catch {}
+}
+
+function init(demo) { chosen.forEach((_, i) => createPicker($('pk' + i), {
+  defaults: i < 2 && demo ? { year: 2024, make: i ? 'Sample Auto' : 'Demo Motors', model: i ? 'Trailmark SUV AWD' : 'Aurora Hybrid', first: true } : {},
+  onChange(t) {
+    chosen[i] = t;
+    $('nm' + i).textContent = t ? `${t.label}` : '';
+    loadPhoto(i, t);
+    const n = chosen.filter(Boolean).length;
+    $('go').disabled = n < 2;
+    $('hint').textContent = n < 2 ? 'Pick at least 2 cars.' : `${n} cars selected.`;
+  },
+})); }
+
+const ROWS = [
+  ['Fuel economy'],
+  ['combinedMpg', 'Combined MPG / MPGe'], ['cityMpg', 'City MPG'], ['highwayMpg', 'Highway MPG'],
+  ['electricRangeMiles', 'Electric range (mi)'], ['annualFuelCostUsd', 'Annual fuel cost (USD)', (x) => '$' + x.toLocaleString()],
+  ['co2GramsPerMile', 'CO₂ (g/mile)'],
+  ['Powertrain'],
+  ['powertrain', 'Powertrain'], ['drivetrain', 'Drivetrain'], ['transmission', 'Transmission'],
+  ['displacementL', 'Engine size (L)'], ['cylinders', 'Cylinders'],
+  ['Space'],
+  ['vehicleClass', 'Class'], ['passengerVolumeCuFt', 'Passenger volume (cu ft)'], ['luggageVolumeCuFt', 'Cargo volume (cu ft)'],
+];
+
+$('go').onclick = async () => {
+  const cars = chosen.filter(Boolean);
+  $('out').innerHTML = '<p class="small">Comparing…</p>';
+  try {
+    const { data } = await api('/compare', { ids: cars.map((c) => c.id).join(',') });
+    const ids = (data.vehicles || cars).map((v) => v.id);
+    const extra = [];
+    // Safety rating per car, in parallel (skip failures)
+    const safety = await Promise.all(cars.map((c) => api('/safety-ratings', { make: c.make, model: c.model, year: c.year }).then((r) => (Array.isArray(r.data) ? r.data[0] : r.data)).catch(() => null)));
+    extra.push(['Safety'], ['__nhtsa', 'NHTSA overall rating', null, safety.map((s) => (s?.overallRating ? '★'.repeat(Number(s.overallRating)) + ` (${s.overallRating}/5)` : '–'))]);
+    const rows = ROWS.concat(extra).map(([k, label, fmt, custom]) => {
+      if (!label) return `<tr class="sec"><td colspan="${ids.length + 1}">${esc(k)}</td></tr>`;
+      const row = data.comparison?.[k];
+      const vals = custom || row?.values || [];
+      if (!custom && vals.every((x) => x == null)) return '';
+      return `<tr><th>${esc(label)}</th>${ids.map((id, i) => `<td class="${row?.bestId != null && row.bestId === id ? 'best' : ''}">${vals[i] == null ? '–' : esc(fmt && typeof vals[i] === 'number' ? fmt(vals[i]) : vals[i])}</td>`).join('')}</tr>`;
+    }).join('');
+    $('out').innerHTML = `<table><thead><tr><th></th>${(data.vehicles || []).map((v) => `<td>${esc(v.name)}<div class="small" style="font-weight:400">${esc(v.summary || '')}</div></td>`).join('')}</tr></thead><tbody>${rows}</tbody></table>
+      <p class="small">Green ✓ = best value in that row. Trims are EPA engine/transmission variants, not marketing packages.</p>`;
+  } catch (e) { $('out').innerHTML = `<p class="small">${esc(e.message)}</p>`; }
+};
+
+fetch('/api/config').then((r) => r.json()).then((c) => { if (c.demo) $('demo').style.display = 'inline-block'; init(c.demo); }).catch(() => init(false));
+</script>
+</body>
+</html>
